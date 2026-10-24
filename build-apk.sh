@@ -32,6 +32,10 @@ esac
 export ANDROID_HOME="${ANDROID_HOME:-$DEFAULT_SDK}"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 
+if [[ -z "${JAVA_HOME:-}" && -x /usr/libexec/java_home ]]; then
+  export JAVA_HOME="$(/usr/libexec/java_home 2>/dev/null || true)"
+fi
+
 command -v java >/dev/null || { echo "Java (JDK 11+) is required." >&2; exit 1; }
 command -v mvn >/dev/null || { echo "Maven is required (https://maven.apache.org)." >&2; exit 1; }
 

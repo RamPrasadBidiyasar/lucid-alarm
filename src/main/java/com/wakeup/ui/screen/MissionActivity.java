@@ -245,8 +245,11 @@ public class MissionActivity extends BaseActivity implements SensorEventListener
     private void complete() {
         if (completing) return;
         completing = true;
+        String pid = plan != null ? plan.id : RingService.planId;
         RingService.send(this, RingService.ACTION_STOP_RING);
-        startActivity(new Intent(this, DismissedActivity.class));
+        Intent i = new Intent(this, DismissedActivity.class);
+        if (pid != null) i.putExtra("planId", pid);
+        startActivity(i);
         finish();
     }
 
@@ -287,28 +290,29 @@ public class MissionActivity extends BaseActivity implements SensorEventListener
         questions = new String[3];
         answers = new int[3];
         for (int i = 0; i < 3; i++) {
-            int a, b, c, d;
+            int a, b, c;
             switch (plan.difficulty) {
                 case 0:
-                    a = 10 + r.nextInt(50);
-                    b = 10 + r.nextInt(50);
+                    // Easy: simple addition under 20 (groggy-friendly)
+                    a = 3 + r.nextInt(8);
+                    b = 2 + r.nextInt(8);
                     questions[i] = a + " + " + b;
                     answers[i] = a + b;
                     break;
                 case 2:
-                    a = 40 + r.nextInt(60);
-                    b = 11 + r.nextInt(29);
-                    c = 3 + r.nextInt(7);
-                    d = 5 + r.nextInt(26);
-                    questions[i] = "(" + a + " − " + b + ") × " + c + " + " + d;
-                    answers[i] = (a - b) * c + d;
-                    break;
-                default:
-                    a = 11 + r.nextInt(49);
+                    // Hard: 2-digit multiplication minus offset
+                    a = 12 + r.nextInt(28);
                     b = 3 + r.nextInt(7);
-                    c = 5 + r.nextInt(36);
+                    c = 10 + r.nextInt(25);
                     questions[i] = a + " × " + b + " − " + c;
                     answers[i] = a * b - c;
+                    break;
+                default:
+                    // Medium: 2-digit addition
+                    a = 12 + r.nextInt(38);
+                    b = 11 + r.nextInt(38);
+                    questions[i] = a + " + " + b;
+                    answers[i] = a + b;
                     break;
             }
         }

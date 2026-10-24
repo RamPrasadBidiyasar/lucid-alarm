@@ -1,10 +1,13 @@
 package com.wakeup.ui.screen;
 
+import android.app.DatePickerDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.DatePicker;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -18,6 +21,8 @@ import com.wakeup.ui.UI;
 import com.wakeup.ui.sheet.FixSheet;
 import com.wakeup.ui.widget.IconView;
 import com.wakeup.ui.widget.SwitchView;
+import com.wakeup.util.Fmt;
+import java.util.Calendar;
 
 /** Required Android settings first, optional ones after. Problems are amber, never red. */
 public class SettingsActivity extends BaseActivity {
@@ -102,6 +107,21 @@ public class SettingsActivity extends BaseActivity {
                         MorningState.setVolumeGuard(SettingsActivity.this, c);
                     }
                 }), null);
+        Rows.add(col, "Stay-awake check", "One prompt 5 min after you confirm",
+                new SwitchView(this, MorningState.stayAwake(this), new SwitchView.OnChange() {
+                    @Override
+                    public void onChange(boolean c) {
+                        MorningState.setStayAwake(SettingsActivity.this, c);
+                    }
+                }), null);
+        String paused = MorningState.pausedUntil(this);
+        Rows.add(col, "Pause alarms", paused.length() > 0 ? "Until " + Fmt.dayMonth(Fmt.dateKeyToMs(paused)) : "For a holiday or a trip",
+                Rows.valueChevron(this, paused.length() > 0 ? "On" : "Off", false), new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        pausePicker();
+                    }
+                });
         Rows.add(col, "Wake-up QR code", MorningState.qrReady(this) ? "Ready" : "Not created yet",
                 Rows.chevron(this), new View.OnClickListener() {
                     @Override
@@ -110,6 +130,41 @@ public class SettingsActivity extends BaseActivity {
                     }
                 });
         col.addView(UI.hairline(this));
+    }
+
+    /** Pick the day alarms start again. Today and tomorrow are not offered: use Skip on Home for those. */
+    private void pausePicker() {
+        final String current = MorningState.pausedUntil(this);
+        Calendar start = Calendar.getInstance();
+        start.add(Calendar.DAY_OF_YEAR, 3);
+        if (current.length() > 0 && Fmt.dateKeyToMs(current) > 0) start.setTimeInMillis(Fmt.dateKeyToMs(current));
+        DatePickerDialog d = new DatePickerDialog(this, android.R.style.Theme_Material_Dialog_Alert,
+                new DatePickerDialog.OnDateSetListener() {
+                    @Override
+                    public void onDateSet(DatePicker view, int year, int month, int day) {
+                        Calendar c = Calendar.getInstance();
+                        c.clear();
+                        c.set(year, month, day, 12, 0, 0);
+                        MorningState.setPausedUntil(SettingsActivity.this, MorningState.dateKey(c.getTimeInMillis()));
+                        Scheduler.scheduleNext(SettingsActivity.this);
+                        render();
+                    }
+                }, start.get(Calendar.YEAR), start.get(Calendar.MONTH), start.get(Calendar.DAY_OF_MONTH));
+        Calendar min = Calendar.getInstance();
+        min.add(Calendar.DAY_OF_YEAR, 2);
+        d.getDatePicker().setMinDate(min.getTimeInMillis() - 1000);
+        d.setTitle("Alarms start again on");
+        if (current.length() > 0) {
+            d.setButton(DialogInterface.BUTTON_NEUTRAL, "Resume now", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    MorningState.clearPausedUntil(SettingsActivity.this);
+                    Scheduler.scheduleNext(SettingsActivity.this);
+                    render();
+                }
+            });
+        }
+        d.show();
     }
 
     private void status(String title, String sub, final int which) {

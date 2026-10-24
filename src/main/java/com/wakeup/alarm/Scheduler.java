@@ -8,6 +8,7 @@ import com.wakeup.data.MorningState;
 import com.wakeup.data.PlanStore;
 import com.wakeup.model.Plan;
 import com.wakeup.ui.screen.MainActivity;
+import com.wakeup.util.Fmt;
 import java.util.Calendar;
 import java.util.List;
 
@@ -21,6 +22,7 @@ public final class Scheduler {
     public static final String EXTRA_TIME = "time";
     public static final String EXTRA_TEST = "test";
 
+    private static final int SEARCH_DAYS = 400; // enough to look past a long pause
     private static final int REQ_NEXT = 1;
     private static final int REQ_TEST = 2;
 
@@ -55,11 +57,23 @@ public final class Scheduler {
 
     /** First ring of this plan strictly after the given time, or -1. Skips a day already confirmed awake. */
     public static long nextForPlan(Plan p, long after, String confirmedDate) {
+        return nextForPlan(p, after, confirmedDate, "");
+    }
+
+    public static long nextForPlan(Plan p, long after, String confirmedDate, String skippedDate) {
+        return nextForPlan(p, after, confirmedDate, skippedDate, "");
+    }
+
+    /** Also skips every day before pausedUntil (a yyyy-MM-dd key, "" when not paused). */
+    public static long nextForPlan(Plan p, long after, String confirmedDate, String skippedDate,
+                                   String pausedUntil) {
         if (p.interval < 1 || p.stopMin < p.startMin) return -1;
-        for (int d = 0; d < 8; d++) {
+        for (int d = 0; d < SEARCH_DAYS; d++) {
             Calendar day = midnight(after, d);
             if (!p.runsOn(dowMonZero(day))) continue;
-            if (MorningState.dateKey(day.getTimeInMillis()).equals(confirmedDate)) continue;
+            String key = MorningState.dateKey(day.getTimeInMillis());
+            if (key.equals(confirmedDate) || key.equals(skippedDate)) continue;
+            if (pausedUntil.length() > 0 && key.compareTo(pausedUntil) < 0) continue;
             for (int m = p.startMin; m <= p.stopMin; m += p.interval) {
                 long t = at(day, m);
                 if (t > after) return t;
@@ -70,11 +84,13 @@ public final class Scheduler {
 
     public static Next next(Context c, long after) {
         String confirmed = MorningState.confirmedDate(c);
+        String skipped = MorningState.skippedDate(c);
+        String paused = MorningState.pausedUntil(c);
         Next best = null;
         List<Plan> plans = PlanStore.all(c);
         for (Plan p : plans) {
             if (!p.enabled) continue;
-            long t = nextForPlan(p, after, confirmed);
+            long t = nextForPlan(p, after, confirmed, skipped, paused);
             if (t > 0 && (best == null || t < best.time)) {
                 best = new Next();
                 best.plan = p;
@@ -93,7 +109,11 @@ public final class Scheduler {
         PendingIntent existing = pending(c, REQ_NEXT, null, 0, false, PendingIntent.FLAG_UPDATE_CURRENT);
         am.cancel(existing);
         Next n = next(c, after);
-        if (n == null) return;
+        if (n == null) {
+            BedtimeCheck.cancel(c);
+            return;
+        }
+        BedtimeCheck.schedule(c, n.time);
         PendingIntent pi = pending(c, REQ_NEXT, n.plan.id, n.time, false, PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent show = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
@@ -138,11 +158,27 @@ public final class Scheduler {
     public static long firstOnLaterDay(Context c, long ms) {
         long after = midnight(ms, 1).getTimeInMillis() - 1;
         String confirmed = MorningState.confirmedDate(c);
+        String skipped = MorningState.skippedDate(c);
+        String paused = MorningState.pausedUntil(c);
         long best = -1;
         for (Plan p : PlanStore.all(c)) {
             if (!p.enabled) continue;
-            long t = nextForPlan(p, after, confirmed);
+            long t = nextForPlan(p, after, confirmed, skipped, paused);
             if (t > 0 && (best < 0 || t < best)) best = t;
+        }
+        return best;
+    }
+
+    /** First ring on the day of a yyyy-MM-dd key, ignoring any skip. Used to word "Skipped Mon 6:00 AM". */
+    public static long firstRingOn(Context c, String dateKey) {
+        long dayStart = Fmt.dateKeyToMs(dateKey);
+        if (dayStart == 0) return -1;
+        Calendar day = midnight(dayStart, 0);
+        long best = -1;
+        for (Plan p : PlanStore.all(c)) {
+            if (!p.enabled || !p.runsOn(dowMonZero(day))) continue;
+            long t = at(day, p.startMin);
+            if (best < 0 || t < best) best = t;
         }
         return best;
     }

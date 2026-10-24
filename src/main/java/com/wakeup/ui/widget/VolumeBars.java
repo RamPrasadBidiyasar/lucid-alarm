@@ -10,7 +10,7 @@ import android.view.View;
 public class VolumeBars extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF r = new RectF();
-    private float level = 0.3f;
+    private float level = 0.08f;
 
     public VolumeBars(Context c, int color) {
         super(c);

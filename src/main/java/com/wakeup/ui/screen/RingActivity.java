@@ -21,6 +21,8 @@ import com.wakeup.alarm.Awake;
 import com.wakeup.alarm.RingService;
 import com.wakeup.alarm.Scheduler;
 import com.wakeup.data.MorningState;
+import com.wakeup.data.PlanStore;
+import com.wakeup.model.Plan;
 import com.wakeup.ui.BaseActivity;
 import com.wakeup.ui.Paste;
 import com.wakeup.ui.UI;
@@ -126,12 +128,22 @@ public class RingActivity extends BaseActivity {
         s2.setPadding(0, dp(16), 0, dp(8));
         col.addView(s2, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView up = UI.pill(this, "I'm up. Scan QR", 0, 0x22000000, UI.ON_AMBER, UI.ON_AMBER, 56, 17);
+        Plan plan = RingService.planId != null ? PlanStore.get(this, RingService.planId) : null;
+        String upText = "I'm up. Confirm awake";
+        if (plan != null) {
+            if (Plan.CONFIRM_PHRASE.equals(plan.confirm)) upText = "I'm up. Type phrase";
+            else if (Plan.CONFIRM_HOLD.equals(plan.confirm)) upText = "I'm up. Hold 5 sec";
+            else if (Plan.CONFIRM_NFC.equals(plan.confirm)) upText = "I'm up. Tap tag";
+            else upText = "I'm up. Scan code";
+        }
+        TextView up = UI.pill(this, upText, 0, 0x22000000, UI.ON_AMBER, UI.ON_AMBER, 56, 17);
         up.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 UI.haptic(v, UI.H_TICK);
-                startActivity(new Intent(RingActivity.this, ScanActivity.class));
+                Intent i = new Intent(RingActivity.this, ScanActivity.class);
+                if (RingService.planId != null) i.putExtra("planId", RingService.planId);
+                startActivity(i);
             }
         });
         col.addView(up, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

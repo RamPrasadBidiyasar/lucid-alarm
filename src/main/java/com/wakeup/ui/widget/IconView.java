@@ -11,7 +11,7 @@ import android.view.View;
 public class IconView extends View {
     public static final int CHEV_R = 0, CHEV_L = 1, CHEV_D = 2, CLOSE = 3, PLUS = 4, CHECK = 5,
             SLIDERS = 6, QR = 7, CALC = 8, KEYBOARD = 9, SHAKE = 10, SPEAKER = 11, SPEAKER_MUTE = 12,
-            CLOCK = 13, TORCH = 14, WARN = 15;
+            CLOCK = 13, TORCH = 14, WARN = 15, EDIT = 16;
 
     private int type;
     private int color;
@@ -116,6 +116,10 @@ public class IconView extends View {
             case WARN:
                 poly(c, s, 12, 3, 22, 20, 2, 20, 12, 3);
                 l(c, s, 12, 10, 12, 15); l(c, s, 12, 17.5f, 12, 17.51f);
+                break;
+            case EDIT:
+                poly(c, s, 4, 20, 5, 15, 16, 4, 20, 8, 9, 19, 4, 20);
+                l(c, s, 14, 6, 18, 10);
                 break;
             default:
                 break;

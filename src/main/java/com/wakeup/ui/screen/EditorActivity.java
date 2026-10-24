@@ -2,8 +2,8 @@ package com.wakeup.ui.screen;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.Editable;
-import android.text.TextWatcher;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +13,9 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.wakeup.alarm.RingService;
+import com.wakeup.alarm.Scheduler;
+import com.wakeup.alarm.SirenPlayer;
 import com.wakeup.data.PlanStore;
 import com.wakeup.model.Plan;
 import com.wakeup.ui.BaseActivity;
@@ -30,7 +33,7 @@ public class EditorActivity extends BaseActivity {
     private Plan plan;
     private boolean existing;
     private boolean draftSaved;
-    private TextView vStart, vStop, vMission, vConfirm, summary;
+    private TextView title, vStart, vStop, vMission, vConfirm, summary, vSound;
     private final FrameLayout[] chips = new FrameLayout[7];
 
     @Override
@@ -61,12 +64,25 @@ public class EditorActivity extends BaseActivity {
 
     private void build() {
         LinearLayout root = column();
-        root.addView(appBar(existing ? plan.name : "New routine", IconView.CLOSE, new View.OnClickListener() {
+        LinearLayout bar = appBar(existing ? plan.name : "New routine", IconView.CLOSE, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 finish();
             }
-        }));
+        });
+        title = (TextView) bar.getChildAt(1);
+        View.OnClickListener rename = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                renameSheet();
+            }
+        };
+        title.setOnClickListener(rename);
+        title.setContentDescription("Routine name, tap to rename");
+        IconView pencil = new IconView(this, IconView.EDIT, UI.T3);
+        pencil.setOnClickListener(rename);
+        bar.addView(pencil, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        root.addView(bar);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
@@ -75,26 +91,7 @@ public class EditorActivity extends BaseActivity {
         scroll.addView(col, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
 
-        // Name
-        final EditText name = new EditText(this);
-        name.setText(plan.name);
-        name.setSingleLine(true);
-        name.setTextColor(UI.T1);
-        name.setHintTextColor(UI.T3);
-        name.setHint("Routine name");
-        name.setTextSize(16);
-        name.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        name.setBackground(null);
-        name.setPadding(0, 0, 0, 0);
-        name.addTextChangedListener(new TextWatcher() {
-            public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-            public void onTextChanged(CharSequence s, int a, int b, int c) {}
-            public void afterTextChanged(Editable e) {
-                plan.name = e.toString().trim();
-            }
-        });
         col.addView(Rows.section(this, "TIMING", true));
-        Rows.add(col, "Name", null, name, null).getChildAt(1).setLayoutParams(new LinearLayout.LayoutParams(dp(180), dp(48)));
 
         vStart = valueView(Fmt.time(plan.startMin));
         Rows.add(col, "First ring", null, wrapValue(vStart), new View.OnClickListener() {
@@ -199,21 +196,27 @@ public class EditorActivity extends BaseActivity {
 
         // Sound
         col.addView(Rows.section(this, "SOUND", false));
-        Rows.add(col, "Rising siren", "30% to 100% over 60 s, until you stop it", null, null);
-        Rows.add(col, "Quiet while solving", "Mutes for 60 s, restarts on each answer",
-                new SwitchView(this, plan.quiet, new SwitchView.OnChange() {
+        vSound = valueView(plan.soundLabel());
+        Rows.add(col, "Sound and vibration", "Starts quiet, full volume in about 90 s", wrapValue(vSound),
+                new View.OnClickListener() {
                     @Override
-                    public void onChange(boolean c) {
-                        plan.quiet = c;
+                    public void onClick(View v) {
+                        soundSheet();
                     }
-                }), null);
-        Rows.add(col, "Vibration", null, new SwitchView(this, plan.vibration, new SwitchView.OnChange() {
-            @Override
-            public void onChange(boolean c) {
-                plan.vibration = c;
-            }
-        }), null);
+                });
         col.addView(UI.hairline(this));
+
+        TextView preview = UI.text(this, "Preview this routine", 15, UI.AMBER, UI.BOLD);
+        preview.setGravity(Gravity.CENTER_VERTICAL);
+        preview.setMinHeight(dp(56));
+        preview.setClickable(true);
+        preview.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                previewRing();
+            }
+        });
+        col.addView(preview);
 
         if (existing && PlanStore.all(this).size() > 1) {
             TextView del = UI.text(this, "Delete routine", 15, UI.T2, UI.MED);
@@ -297,6 +300,153 @@ public class EditorActivity extends BaseActivity {
         }
         PlanStore.upsert(this, plan);
         finish();
+    }
+
+    private void soundSheet() {
+        final Sheet s = new Sheet(this);
+        s.body.addView(UI.text(this, "Sound and vibration", 24, UI.T1, UI.REG));
+        TextView d = UI.text(this, "Starts quiet, then rises to full volume in about 90 seconds.", 15, UI.T2, UI.REG);
+        d.setPadding(0, dp(4), 0, dp(12));
+        s.body.addView(d);
+
+        final String[] ids = {Plan.SOUND_SIREN, Plan.SOUND_BEACON, Plan.SOUND_CHIME};
+        final String[] titles = {"Rising siren", "Pulse beacon", "Harmonic chime"};
+        final String[] descs = {"Two-tone sweep", "Sonar ping", "Bell chord"};
+        final FrameLayout[] radios = new FrameLayout[ids.length];
+
+        for (int i = 0; i < ids.length; i++) {
+            final int index = i;
+            s.body.addView(UI.hairline(this));
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setMinimumHeight(dp(60));
+            LinearLayout t = column();
+            t.addView(UI.text(this, titles[i], 16, UI.T1, UI.MED));
+            TextView sub = UI.text(this, descs[i], 13, UI.T3, UI.REG);
+            sub.setPadding(0, dp(2), 0, 0);
+            t.addView(sub);
+            row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            radios[i] = new FrameLayout(this);
+            row.addView(radios[i], new LinearLayout.LayoutParams(dp(24), dp(24)));
+            paintRadio(radios[i], ids[i].equals(plan.sound));
+            row.setClickable(true);
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    plan.sound = ids[index];
+                    vSound.setText(plan.soundLabel());
+                    for (int k = 0; k < radios.length; k++) paintRadio(radios[k], k == index);
+                    UI.haptic(v, UI.H_TICK);
+                    playPreview(ids[index]);
+                }
+            });
+            s.body.addView(row);
+        }
+        Rows.add(s.body, "Quiet while solving", "Mutes for 60 s, restarts on each answer",
+                new SwitchView(this, plan.quiet, new SwitchView.OnChange() {
+                    @Override
+                    public void onChange(boolean c) {
+                        plan.quiet = c;
+                    }
+                }), null);
+        Rows.add(s.body, "Vibration", null, new SwitchView(this, plan.vibration, new SwitchView.OnChange() {
+            @Override
+            public void onChange(boolean c) {
+                plan.vibration = c;
+            }
+        }), null);
+        s.body.addView(UI.hairline(this));
+        TextView done = UI.primary(this, "Done", 56);
+        done.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                s.dismiss();
+            }
+        });
+        LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dp.topMargin = dp(16);
+        s.body.addView(done, dp);
+        s.show();
+    }
+
+    private void paintRadio(FrameLayout radio, boolean on) {
+        radio.removeAllViews();
+        radio.setBackground(on ? UI.rr(this, UI.AMBER, 12) : UI.outline(this, 0, UI.LINE2, 2f, 12));
+        if (on) radio.addView(new IconView(this, IconView.CHECK, UI.ON_AMBER).stroke(3.2f),
+                new FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER));
+    }
+
+    /** One second of the sound at half gain so you can hear what you picked. */
+    private void playPreview(String sound) {
+        final SirenPlayer preview = new SirenPlayer();
+        preview.setSound(sound);
+        preview.setGain(0.5f);
+        preview.start();
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                preview.stop();
+            }
+        }, 1000);
+    }
+
+    private void renameSheet() {
+        final Sheet s = new Sheet(this);
+        s.body.addView(UI.text(this, "Routine name", 24, UI.T1, UI.REG));
+        final EditText in = new EditText(this);
+        in.setText(plan.name);
+        in.setSelection(in.getText().length());
+        in.setSingleLine(true);
+        in.setTextColor(UI.T1);
+        in.setHint("Name");
+        in.setHintTextColor(UI.T3);
+        in.setBackground(UI.outline(this, 0, UI.LINE2, 1f, 14));
+        in.setPadding(dp(16), dp(12), dp(16), dp(12));
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52));
+        ip.topMargin = dp(16);
+        s.body.addView(in, ip);
+        LinearLayout row = new LinearLayout(this);
+        row.setPadding(0, dp(16), 0, 0);
+        TextView cancel = UI.secondary(this, "Cancel", 56);
+        cancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                s.dismiss();
+            }
+        });
+        TextView save = UI.primary(this, "Save", 56);
+        save.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String n = in.getText().toString().trim();
+                if (n.length() > 0) {
+                    plan.name = n;
+                    title.setText(n);
+                }
+                s.dismiss();
+            }
+        });
+        LinearLayout.LayoutParams l1 = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        l1.rightMargin = dp(12);
+        row.addView(cancel, l1);
+        row.addView(save, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.4f));
+        s.body.addView(row);
+        s.show();
+        in.requestFocus();
+    }
+
+    /** Rings once with this routine's sound and mission. Nothing is cancelled or logged. */
+    private void previewRing() {
+        if (plan.name.length() == 0) plan.name = "Routine";
+        PlanStore.upsert(this, plan);
+        existing = true;
+        draftSaved = true;
+        Intent svc = new Intent(this, RingService.class).setAction(RingService.ACTION_START);
+        svc.putExtra(Scheduler.EXTRA_PLAN, plan.id);
+        svc.putExtra(Scheduler.EXTRA_TIME, System.currentTimeMillis());
+        svc.putExtra(Scheduler.EXTRA_TEST, true);
+        startForegroundService(svc);
+        startActivity(new Intent(this, RingActivity.class));
     }
 
     private void confirmDelete() {

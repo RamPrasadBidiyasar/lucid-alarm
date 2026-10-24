@@ -77,6 +77,30 @@ public class SchedulerTest {
     }
 
     @Test
+    public void aSkippedDayIsPassedOver() {
+        long next = Scheduler.nextForPlan(weekdays(), at(2026, 10, 25, 22, 0), "", "2026-10-26");
+        assertEquals(at(2026, 10, 27, 6, 0), next);
+    }
+
+    @Test
+    public void aPauseHoldsAlarmsUntilTheChosenDay() {
+        long next = Scheduler.nextForPlan(weekdays(), at(2026, 10, 25, 22, 0), "", "", "2026-11-02");
+        assertEquals(at(2026, 11, 2, 6, 0), next);
+    }
+
+    @Test
+    public void aPauseLongerThanAWeekIsStillFound() {
+        long next = Scheduler.nextForPlan(weekdays(), at(2026, 10, 25, 22, 0), "", "", "2026-12-14");
+        assertEquals(at(2026, 12, 14, 6, 0), next);
+    }
+
+    @Test
+    public void skipAndConfirmCanOverlap() {
+        long next = Scheduler.nextForPlan(weekdays(), at(2026, 10, 26, 6, 11), "2026-10-26", "2026-10-27");
+        assertEquals(at(2026, 10, 28, 6, 0), next);
+    }
+
+    @Test
     public void countsEveryRingOfAMorning() {
         assertEquals(37, weekdays().totalRings());
     }

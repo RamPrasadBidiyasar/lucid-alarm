@@ -10,6 +10,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.wakeup.alarm.RingService;
 import com.wakeup.alarm.Scheduler;
+import com.wakeup.data.PlanStore;
+import com.wakeup.model.Plan;
 import com.wakeup.ui.BaseActivity;
 import com.wakeup.ui.UI;
 import com.wakeup.ui.widget.IconView;
@@ -21,6 +23,10 @@ public class DismissedActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        String pid = getIntent().getStringExtra("planId");
+        if (pid == null) pid = RingService.planId;
+        final Plan plan = pid != null ? PlanStore.get(this, pid) : null;
+        final String targetPlanId = pid;
         final int ringNo = RingService.ringIndex;
         long now = System.currentTimeMillis();
         Scheduler.Next next = Scheduler.next(this, now);
@@ -69,7 +75,30 @@ public class DismissedActivity extends BaseActivity {
         TextView h = UI.text(this, "You're not marked awake yet", 24, UI.T1, UI.REG);
         h.setPadding(0, dp(24), 0, dp(8));
         mid.addView(h);
-        TextView d = UI.text(this, remaining + " more rings are scheduled today. Scan your QR code to cancel all of them.", 16, UI.T2, UI.REG);
+
+        String method = plan != null ? plan.confirm : Plan.CONFIRM_PHRASE;
+        String desc;
+        String btnLabel;
+        int btnIcon = IconView.CHECK;
+        if (Plan.CONFIRM_PHRASE.equals(method)) {
+            desc = remaining + " more rings scheduled today. Type your wake-up phrase to cancel all of them.";
+            btnLabel = "Type phrase to wake up";
+            btnIcon = IconView.KEYBOARD;
+        } else if (Plan.CONFIRM_HOLD.equals(method)) {
+            desc = remaining + " more rings scheduled today. Hold for 5 seconds to confirm you are awake.";
+            btnLabel = "Hold 5 sec to wake up";
+            btnIcon = IconView.CHECK;
+        } else if (Plan.CONFIRM_NFC.equals(method)) {
+            desc = remaining + " more rings scheduled today. Tap your NFC sticker to cancel all of them.";
+            btnLabel = "Tap NFC tag to wake up";
+            btnIcon = IconView.QR;
+        } else {
+            desc = remaining + " more rings scheduled today. Scan code or any bathroom item to cancel all of them.";
+            btnLabel = "Scan code to wake up";
+            btnIcon = IconView.QR;
+        }
+
+        TextView d = UI.text(this, desc, 16, UI.T2, UI.REG);
         d.setLineSpacing(0, 1.2f);
         mid.addView(d);
         root.addView(mid);
@@ -86,15 +115,17 @@ public class DismissedActivity extends BaseActivity {
         scan.setGravity(Gravity.CENTER);
         scan.setMinimumHeight(dp(64));
         scan.setBackground(UI.press(UI.rr(this, UI.AMBER, 500), UI.rr(this, UI.AMBER_PRESSED, 500)));
-        scan.addView(new IconView(this, IconView.QR, UI.ON_AMBER).stroke(1.9f), new LinearLayout.LayoutParams(dp(24), dp(24)));
-        TextView st = UI.text(this, "Scan QR to wake up", 18, UI.ON_AMBER, UI.BOLD);
+        scan.addView(new IconView(this, btnIcon, UI.ON_AMBER).stroke(1.9f), new LinearLayout.LayoutParams(dp(24), dp(24)));
+        TextView st = UI.text(this, btnLabel, 18, UI.ON_AMBER, UI.BOLD);
         st.setPadding(dp(12), 0, 0, 0);
         scan.addView(st);
         scan.setClickable(true);
         scan.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(DismissedActivity.this, ScanActivity.class));
+                Intent i = new Intent(DismissedActivity.this, ScanActivity.class);
+                if (targetPlanId != null) i.putExtra("planId", targetPlanId);
+                startActivity(i);
             }
         });
         bottom.addView(scan, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

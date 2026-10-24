@@ -3,6 +3,7 @@ package com.wakeup.ui.screen;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.content.Intent;
+import android.graphics.Paint;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -12,6 +13,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import com.wakeup.alarm.BedtimeCheck;
 import com.wakeup.alarm.Reliability;
 import com.wakeup.alarm.RingService;
 import com.wakeup.alarm.Scheduler;
@@ -21,6 +23,7 @@ import com.wakeup.model.Plan;
 import com.wakeup.ui.BaseActivity;
 import com.wakeup.ui.Rows;
 import com.wakeup.ui.UI;
+import com.wakeup.ui.sheet.HistorySheet;
 import com.wakeup.ui.widget.IconView;
 import com.wakeup.ui.widget.SwitchView;
 import com.wakeup.util.Fmt;
@@ -118,58 +121,32 @@ public class MainActivity extends BaseActivity {
                 th.setPadding(0, dp(2), 0, 0);
                 hero.addView(th);
             }
+
+            if (MorningState.skippedDate(this).length() == 0 && MorningState.pausedUntil(this).length() == 0
+                    && n.time - System.currentTimeMillis() <= 24 * 3600 * 1000L) {
+                final String nextDayKey = MorningState.dateKey(n.time);
+                boolean isToday = Fmt.sameDay(n.time, System.currentTimeMillis());
+                TextView skipBtn = UI.text(this, isToday ? "Skip today's alarm" : "Skip tomorrow's alarm", 14, UI.T3, UI.REG);
+                skipBtn.setPaintFlags(skipBtn.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
+                skipBtn.setPadding(0, dp(8), 0, 0);
+                skipBtn.setMinHeight(dp(40));
+                skipBtn.setClickable(true);
+                skipBtn.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        MorningState.setSkippedDate(MainActivity.this, nextDayKey);
+                        Scheduler.scheduleNext(MainActivity.this);
+                        render();
+                    }
+                });
+                hero.addView(skipBtn);
+            }
         }
         col.addView(hero);
         if (firstRender) UI.rise(hero, 0);
         firstRender = false;
 
-        String result = MorningState.resultToday(this);
-        if (result != null) {
-            LinearLayout r = new LinearLayout(this);
-            r.setGravity(Gravity.CENTER_VERTICAL);
-            r.setPadding(dp(24), dp(20), dp(24), 0);
-            r.addView(new IconView(this, IconView.CHECK, UI.OK), new LinearLayout.LayoutParams(dp(18), dp(18)));
-            TextView t = UI.text(this, result, 14, UI.T2, UI.REG);
-            t.setPadding(dp(10), 0, 0, 0);
-            r.addView(t);
-            col.addView(r);
-        }
-
-        // Reliability row
-        int issues = Reliability.issueCount(this);
-        if (issues > 0) {
-            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            rp.setMargins(dp(24), dp(28), dp(24), 0);
-            LinearLayout wrap = column();
-            wrap.addView(UI.hairline(this));
-            LinearLayout row = new LinearLayout(this);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setMinimumHeight(dp(52));
-            View dot = new View(this);
-            dot.setBackground(UI.rr(this, UI.AMBER, 4));
-            row.addView(dot, new LinearLayout.LayoutParams(dp(8), dp(8)));
-            if (UI.animationsOn()) {
-                ObjectAnimator a = ObjectAnimator.ofFloat(dot, "alpha", 1f, 0.35f);
-                a.setDuration(1200);
-                a.setRepeatCount(ValueAnimator.INFINITE);
-                a.setRepeatMode(ValueAnimator.REVERSE);
-                a.start();
-            }
-            TextView t = UI.text(this, issues + (issues == 1 ? " setting needed." : " settings needed.") + " The alarm may not ring on time.", 14, UI.T1, UI.REG);
-            t.setPadding(dp(12), 0, dp(8), 0);
-            row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            row.addView(Rows.chevron(this));
-            wrap.addView(row);
-            wrap.addView(UI.hairline(this));
-            wrap.setClickable(true);
-            wrap.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    startActivity(new Intent(MainActivity.this, SettingsActivity.class));
-                }
-            });
-            col.addView(wrap, rp);
-        }
+        addStatus(col);
 
         // Routines
         LinearLayout list = column();
@@ -196,6 +173,106 @@ public class MainActivity extends BaseActivity {
         FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(dp(60), dp(60), Gravity.BOTTOM | Gravity.END);
         fp.setMargins(0, 0, dp(24), dp(24));
         frame.addView(fab, fp);
+    }
+
+    /** One quiet line under the hero. Only the most important message is shown. */
+    private void addStatus(LinearLayout col) {
+        long now = System.currentTimeMillis();
+        Scheduler.Next n = Scheduler.next(this, now);
+        int battery = BedtimeCheck.lowBattery(this);
+        int issues = Reliability.issueCount(this);
+        String paused = MorningState.pausedUntil(this);
+        String skipped = MorningState.skippedDate(this);
+        String result = MorningState.resultToday(this);
+
+        if (battery > 0 && n != null && n.time - now <= 8 * 3600 * 1000L) {
+            statusRow(col, IconView.WARN, UI.AMBER, false, "Battery " + battery + "%. Plug in so WakeUp can ring at "
+                    + Fmt.time(n.time) + ".", null, null);
+        } else if (issues > 0) {
+            statusRow(col, -1, UI.AMBER, true, issues + (issues == 1 ? " setting needed." : " settings needed.")
+                    + " The alarm may not ring on time.", null, new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    startActivity(new Intent(MainActivity.this, SettingsActivity.class));
+                }
+            });
+        } else if (paused.length() > 0) {
+            statusRow(col, IconView.CLOCK, UI.T2, false, "Paused until " + Fmt.dayMonth(Fmt.dateKeyToMs(paused)), "Resume",
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            MorningState.clearPausedUntil(MainActivity.this);
+                            Scheduler.scheduleNext(MainActivity.this);
+                            render();
+                        }
+                    });
+        } else if (skipped.length() > 0) {
+            long first = Scheduler.firstRingOn(this, skipped);
+            String when = first > 0 ? Fmt.dayShort(first) + " " + Fmt.time(first) : Fmt.dayMonth(Fmt.dateKeyToMs(skipped));
+            statusRow(col, IconView.CLOCK, UI.T2, false, "Skipped " + when, "Undo", new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    MorningState.clearSkippedDate(MainActivity.this);
+                    Scheduler.scheduleNext(MainActivity.this);
+                    render();
+                }
+            });
+        } else if (result != null) {
+            statusRow(col, IconView.CHECK, UI.OK, false, result, null, new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    new HistorySheet(MainActivity.this).show();
+                }
+            });
+        }
+    }
+
+    /**
+     * @param icon   icon type, or -1 for none
+     * @param pulse  a slowly pulsing amber dot instead of an icon
+     * @param action text button at the end, or null for a chevron when the row is clickable
+     */
+    private void statusRow(LinearLayout col, int icon, int iconColor, boolean pulse, String text,
+                           String action, View.OnClickListener click) {
+        LinearLayout wrap = column();
+        wrap.addView(UI.hairline(this));
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(52));
+        if (pulse) {
+            View dot = new View(this);
+            dot.setBackground(UI.rr(this, UI.AMBER, 4));
+            row.addView(dot, new LinearLayout.LayoutParams(dp(8), dp(8)));
+            if (UI.animationsOn()) {
+                ObjectAnimator a = ObjectAnimator.ofFloat(dot, "alpha", 1f, 0.35f);
+                a.setDuration(1200);
+                a.setRepeatCount(ValueAnimator.INFINITE);
+                a.setRepeatMode(ValueAnimator.REVERSE);
+                a.start();
+            }
+        } else if (icon >= 0) {
+            row.addView(new IconView(this, icon, iconColor), new LinearLayout.LayoutParams(dp(18), dp(18)));
+        }
+        TextView t = UI.text(this, text, 14, UI.T1, UI.REG);
+        t.setPadding(dp(12), 0, dp(8), 0);
+        row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (action != null) {
+            TextView a = UI.text(this, action, 14, UI.AMBER, UI.BOLD);
+            a.setGravity(Gravity.CENTER_VERTICAL);
+            a.setMinHeight(dp(48));
+            a.setClickable(true);
+            a.setOnClickListener(click);
+            row.addView(a);
+        } else if (click != null) {
+            row.addView(Rows.chevron(this));
+            wrap.setClickable(true);
+            wrap.setOnClickListener(click);
+        }
+        wrap.addView(row);
+        wrap.addView(UI.hairline(this));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(dp(24), dp(28), dp(24), 0);
+        col.addView(wrap, lp);
     }
 
     private View planRow(final Plan p) {

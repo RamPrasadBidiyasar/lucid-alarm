@@ -1,6 +1,7 @@
 package com.wakeup.ui.screen;
 
 import android.content.Intent;
+import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
@@ -17,6 +18,8 @@ import com.wakeup.ui.Rows;
 import com.wakeup.ui.Segmented;
 import com.wakeup.ui.UI;
 import com.wakeup.ui.widget.IconView;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Choose the mission that stops a ring, and the one that confirms you are awake. */
 public class MissionsActivity extends BaseActivity {
@@ -45,17 +48,21 @@ public class MissionsActivity extends BaseActivity {
 
     private final Item[] stopItems = {
             new Item(Plan.MISSION_MATH, "Math", "Three problems", IconView.CALC,
-                    new String[]{"Easy", "Medium", "Hard"}, new String[]{"27 + 15", "47 × 6 − 18", "(52 − 19) × 4 + 7"}),
+                    new String[]{"Easy", "Medium", "Hard"}, new String[]{"7 + 5", "24 + 19", "24 × 5 − 18"}),
             new Item(Plan.MISSION_TYPING, "Typing", "Retype a sentence, paste blocked", IconView.KEYBOARD,
                     new String[]{"Short", "Medium", "Long"}, new String[]{"Up and at it", "Today I get up on time", "I choose to leave this bed right now"}),
             new Item(Plan.MISSION_SHAKE, "Shake", "Shake the phone", IconView.SHAKE,
                     new String[]{"30", "50", "100"}, new String[]{"Shake 30 times", "Shake 50 times", "Shake 100 times"})
     };
     private final Item[] confirmItems = {
-            new Item(Plan.CONFIRM_QR, "Scan QR code", "A code you keep in the bathroom", IconView.QR,
-                    new String[0], new String[]{"Walk there, then scan"}),
-            new Item(Plan.CONFIRM_PHRASE, "Type a phrase", "Backup if you cannot scan", IconView.KEYBOARD,
-                    new String[0], new String[]{"A 30 character sentence, typed slowly"})
+            new Item(Plan.CONFIRM_PHRASE, "Type a phrase", "Type a short affirmation to cancel alarms", IconView.KEYBOARD,
+                    new String[0], new String[]{"Type: I am awake"}),
+            new Item(Plan.CONFIRM_HOLD, "Hold 5 seconds", "Touch and hold button to prove you are up", IconView.CHECK,
+                    new String[0], new String[]{"Firm 5-second press with haptics"}),
+            new Item(Plan.CONFIRM_QR, "Scan QR or Barcode", "Code or any bathroom item (toothpaste, soap)", IconView.QR,
+                    new String[0], new String[]{"Walk there, then scan code or package"}),
+            new Item(Plan.CONFIRM_NFC, "Tap NFC tag", "A sticker in the bathroom or kitchen", IconView.QR,
+                    new String[0], new String[]{"Touch phone to the sticker"})
     };
 
     @Override
@@ -127,7 +134,7 @@ public class MissionsActivity extends BaseActivity {
                 : "Solving it silences only the current ring. The next one still comes.");
 
         list.removeAllViews();
-        Item[] items = confirmTab ? confirmItems : stopItems;
+        Item[] items = confirmTab ? visibleConfirmItems() : stopItems;
         String selected = confirmTab ? plan.confirm : plan.mission;
         Item chosen = items[0];
         for (final Item it : items) {
@@ -155,6 +162,15 @@ public class MissionsActivity extends BaseActivity {
             list.addView(r);
         }
         cta.setText("Use " + chosen.name);
+    }
+
+    /** NFC is only offered on phones that have it, or when this routine already uses it. */
+    private Item[] visibleConfirmItems() {
+        boolean hasNfc = NfcAdapter.getDefaultAdapter(this) != null || Plan.CONFIRM_NFC.equals(plan.confirm);
+        if (hasNfc) return confirmItems;
+        List<Item> out = new ArrayList<Item>();
+        for (Item it : confirmItems) if (!Plan.CONFIRM_NFC.equals(it.id)) out.add(it);
+        return out.toArray(new Item[0]);
     }
 
     private View tab(String label, boolean on, final boolean toConfirm) {

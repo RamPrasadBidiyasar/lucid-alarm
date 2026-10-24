@@ -10,6 +10,11 @@ public class Plan {
     public static final String MISSION_SHAKE = "shake";
     public static final String CONFIRM_QR = "qr";
     public static final String CONFIRM_PHRASE = "phrase";
+    public static final String CONFIRM_NFC = "nfc";
+    public static final String CONFIRM_HOLD = "hold";
+    public static final String SOUND_SIREN = "siren";
+    public static final String SOUND_BEACON = "beacon";
+    public static final String SOUND_CHIME = "chime";
 
     public String id;
     public String name = "New routine";
@@ -20,7 +25,8 @@ public class Plan {
     public boolean enabled = true;
     public String mission = MISSION_MATH;
     public int difficulty = 1; // 0 easy, 1 medium, 2 hard
-    public String confirm = CONFIRM_QR;
+    public String confirm = CONFIRM_PHRASE;
+    public String sound = SOUND_SIREN;
     public boolean quiet = true;
     public boolean vibration = true;
 
@@ -48,7 +54,16 @@ public class Plan {
     }
 
     public String confirmLabel() {
-        return CONFIRM_PHRASE.equals(confirm) ? "Type phrase" : "Scan QR";
+        if (CONFIRM_PHRASE.equals(confirm)) return "Type phrase";
+        if (CONFIRM_HOLD.equals(confirm)) return "Hold 5 sec";
+        if (CONFIRM_NFC.equals(confirm)) return "Tap NFC tag";
+        return "Scan code";
+    }
+
+    public String soundLabel() {
+        if (SOUND_BEACON.equals(sound)) return "Pulse beacon";
+        if (SOUND_CHIME.equals(sound)) return "Harmonic chime";
+        return "Rising siren";
     }
 
     public String daysLabel() {
@@ -79,6 +94,7 @@ public class Plan {
             o.put("mission", mission);
             o.put("difficulty", difficulty);
             o.put("confirm", confirm);
+            o.put("sound", sound);
             o.put("quiet", quiet);
             o.put("vibration", vibration);
             return o;
@@ -99,6 +115,7 @@ public class Plan {
         p.mission = o.optString("mission", p.mission);
         p.difficulty = o.optInt("difficulty", p.difficulty);
         p.confirm = o.optString("confirm", p.confirm);
+        p.sound = o.optString("sound", p.sound);
         p.quiet = o.optBoolean("quiet", true);
         p.vibration = o.optBoolean("vibration", true);
         return p;

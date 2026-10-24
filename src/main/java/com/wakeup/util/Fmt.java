@@ -1,5 +1,6 @@
 package com.wakeup.util;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -40,6 +41,29 @@ public final class Fmt {
 
     public static String dayShort(long ms) {
         return new SimpleDateFormat("EEE", Locale.getDefault()).format(new Date(ms));
+    }
+
+    /** Start of the day for a yyyy-MM-dd key, or 0 if it cannot be read. */
+    public static long dateKeyToMs(String key) {
+        try {
+            return new SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(key).getTime();
+        } catch (ParseException e) {
+            return 0;
+        }
+    }
+
+    /** "Mon 3 Nov". */
+    public static String dayMonth(long ms) {
+        return new SimpleDateFormat("EEE d MMM", Locale.getDefault()).format(new Date(ms));
+    }
+
+    /** True when both times fall on the same calendar day. */
+    public static boolean sameDay(long a, long b) {
+        Calendar x = Calendar.getInstance();
+        Calendar y = Calendar.getInstance();
+        x.setTimeInMillis(a);
+        y.setTimeInMillis(b);
+        return dayNumber(x) == dayNumber(y);
     }
 
     /** "TODAY · SUN", "TOMORROW · MON" or "WED 12 NOV". */

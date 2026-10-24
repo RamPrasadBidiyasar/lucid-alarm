@@ -55,6 +55,12 @@ public class ClearedActivity extends BaseActivity {
                         : Fmt.dayShort(next.time) + " · " + Fmt.time(next.time) + " · " + next.plan.name));
         list.addView(UI.hairline(this));
         root.addView(list);
+        long prompt = MorningState.stayPromptAt(this);
+        if (prompt > 0) {
+            TextView checkNote = UI.text(this, "A quick check comes at " + Fmt.time(prompt) + ". Tap I'm up to stay done.", 14, UI.T3, UI.REG);
+            checkNote.setPadding(dp(24), dp(16), dp(24), 0);
+            root.addView(checkNote);
+        }
 
         root.addView(UI.spacer(this, 1f));
 

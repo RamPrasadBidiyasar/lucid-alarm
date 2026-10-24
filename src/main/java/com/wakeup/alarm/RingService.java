@@ -35,7 +35,7 @@ public class RingService extends Service {
     public static final String EXTRA_SECONDS = "seconds";
 
     public static final long QUIET_MS = 60000;
-    private static final float RAMP_PER_SECOND = 0.7f / 60f; // 30% to 100% over 60 s
+    private static final float RAMP_BASE = 0.92f / 90f; // 90 seconds to reach full volume
     private static final int NOTIF_ID = 7;
     private static final String CHANNEL = "ring";
 
@@ -47,6 +47,8 @@ public class RingService extends Service {
     public static volatile String planId;
     public static volatile String planName = "";
     public static volatile long ringTimeMs;
+    /** True for a preview or a test alarm. Confirming a test must not cancel the real day. */
+    public static volatile boolean test;
 
     private SirenPlayer siren;
     private Vibrator vibrator;
@@ -87,7 +89,7 @@ public class RingService extends Service {
         } else if (ACTION_QUIET.equals(action)) {
             if (ringing) quietUntil = System.currentTimeMillis() + QUIET_MS;
         } else if (ACTION_STOP_RING.equals(action)) {
-            if (ringing) MorningState.incStopped(this);
+            if (ringing && !test) MorningState.incStopped(this);
             stopEverything();
         } else if (ACTION_STOP_ALL.equals(action)) {
             stopEverything();
@@ -100,14 +102,15 @@ public class RingService extends Service {
     private void handleStart(Intent intent) {
         String pid = intent.getStringExtra(Scheduler.EXTRA_PLAN);
         long t = intent.getLongExtra(Scheduler.EXTRA_TIME, System.currentTimeMillis());
-        boolean test = intent.getBooleanExtra(Scheduler.EXTRA_TEST, false);
+        boolean isTest = intent.getBooleanExtra(Scheduler.EXTRA_TEST, false);
+        test = isTest;
         Plan p = pid == null ? null : PlanStore.get(this, pid);
         if (p == null) p = new Plan();
 
         planId = p.id;
-        planName = test ? "Test alarm" : p.name;
+        planName = isTest ? "Test alarm" : p.name;
         ringTimeMs = t;
-        if (test) {
+        if (isTest) {
             ringIndex = 1;
             ringTotal = 1;
             stopAt = Long.MAX_VALUE;
@@ -136,6 +139,7 @@ public class RingService extends Service {
             audio.setStreamVolume(AudioManager.STREAM_ALARM, audio.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0);
 
             siren = new SirenPlayer();
+            siren.setSound(p.sound);
             siren.setGain(gain);
             siren.start();
 
@@ -157,14 +161,21 @@ public class RingService extends Service {
             float dt = (now - lastTick) / 1000f;
             lastTick = now;
             boolean quiet = now < quietUntil;
-            if (!quiet) gain = Math.min(1f, gain + RAMP_PER_SECOND * dt);
+            if (!quiet) {
+                // Starts extra gentle below 30% volume, then gently accelerates to 100%
+                float rate = gain < 0.30f ? RAMP_BASE * 0.5f : RAMP_BASE;
+                gain = Math.min(1f, gain + rate * dt);
+            }
             if (siren != null) siren.setGain(quiet ? 0f : gain);
             if (now - lastSaved > 3000) {
                 MorningState.setGain(RingService.this, gain);
                 lastSaved = now;
             }
             if (now >= stopAt) {
-                MorningState.setResult(RingService.this, "Missed. Rings ended at " + Fmt.time(now));
+                String miss = "Missed. Rings ended at " + Fmt.time(now);
+                MorningState.setResult(RingService.this, miss);
+                MorningState.logHistory(RingService.this, "missed", 0, now, miss);
+                StayAwake.cancel(RingService.this);
                 stopEverything();
                 return;
             }
