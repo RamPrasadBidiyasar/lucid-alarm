@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/bg_dark</item>
+        <item name="android:colorAccent">#FFFFB400</item>
+        <item name="android:textColorPrimary">#FFF5F3EE</item>
+        <item name="android:textColorSecondary">#FFA8A59E</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/Motion</item>
+    </style>
+
+    <style name="SheetDialog" parent="android:Theme.Material.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.62</item>
+        <item name="android:textColorPrimary">#FFF5F3EE</item>
+        <item name="android:colorAccent">#FFFFB400</item>
+        <item name="android:windowAnimationStyle">@style/SheetMotion</item>
+    </style>
+
+    <style name="Motion" parent="android:Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/rise_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/fade_out</item>
+    </style>
+
+    <style name="SheetMotion" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/rise_in</item>
+        <item name="android:windowExitAnimation">@anim/fade_out</item>
+    </style>
+</resources>
