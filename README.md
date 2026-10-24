@@ -1,10 +1,47 @@
-# WakeUp
+<p align="center">
+  <img src="docs/icon.png" width="112" alt="WakeUp icon">
+</p>
 
-A personal alarm app for Android that keeps ringing until you prove you are out of bed.
+<h1 align="center">WakeUp</h1>
+
+<p align="center">
+  A personal alarm for Android that keeps ringing until you prove you are out of bed.<br>
+  Quiet and minimal all day. Impossible to ignore at 6:00.
+</p>
+
+## Screens
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screens/home.png" width="230" alt="Home"><br><sub><b>Home</b><br>The next alarm is the hero</sub></td>
+    <td align="center"><img src="docs/screens/ringing.png" width="230" alt="Ringing"><br><sub><b>Ringing</b><br>Two clearly scoped actions</sub></td>
+    <td align="center"><img src="docs/screens/math.png" width="230" alt="Math mission"><br><sub><b>Math mission</b><br>Quiet while you solve</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screens/dismissed.png" width="230" alt="Ring stopped"><br><sub><b>Ring stopped</b><br>Not awake until you confirm</sub></td>
+    <td align="center"><img src="docs/screens/cleared.png" width="230" alt="Day completed"><br><sub><b>Day completed</b><br>Rest of today cancelled, tomorrow armed</sub></td>
+    <td align="center"><img src="docs/screens/missions.png" width="230" alt="Missions"><br><sub><b>Missions</b><br>Pick how to stop and confirm</sub></td>
+  </tr>
+</table>
+
+<sub>These are the design mockups the app was built from. The app follows them closely, but uses
+your phone's system font instead of Sora and Inter.</sub>
+
+## How a morning works
+
+```
+Ring 1 starts quiet and gets louder ──► Solve the math ──► That ring stops
+        │                                                       │
+        │                              the next ring still comes in 5 minutes
+        ▼                                                       ▼
+   Confirm you are awake (type, hold, scan or tap) ──► every remaining ring is cancelled
+                                                         tomorrow's routine arms itself
+                                                         a "Still up?" check comes 5 minutes later
+```
 
 - A **routine** rings from a start time at a fixed interval until a hard stop, on the days you choose.
   Example: 6:00 AM, every 5 minutes, until 9:00 AM, Monday to Friday.
-- The siren **starts quiet and rises to full volume in about 90 seconds**, and keeps ringing until you
+- The siren **starts quiet and rises to full volume in about 2 minutes**, and keeps ringing until you
   stop it. Pick a siren, beacon or chime.
 - **Solving a mission** (math, typing or shake) stops only the current ring. The siren is quiet for
   60 seconds while you solve, and each correct step restarts those 60 seconds.
@@ -13,7 +50,8 @@ A personal alarm app for Android that keeps ringing until you prove you are out 
 - A **stay-awake check** comes 5 minutes after you confirm. Ignore it for a minute and the rings
   resume. It can be switched off in Settings.
 - **Skip** tomorrow's alarm from Home, or **pause** all alarms until a date in Settings.
-- A quiet **battery nudge** appears 8 hours before the alarm, only if the phone is low and not charging.
+- A quiet **battery nudge** appears in the 8 hours before the alarm, only if the phone is low and
+  not charging.
 - The last 7 mornings are shown as dots when you tap the "Awake at…" line on Home.
 - Settings shows which Android permissions are missing, and never claims the alarm is guaranteed
   when they are.
@@ -33,7 +71,8 @@ with `scripts/setup-sdk.sh` (command-line tools, platform 30, build-tools 30.0.3
 
 On an Apple Silicon Mac the SDK's `aapt` is an Intel binary, so Rosetta must be installed once:
 `softwareupdate --install-rosetta --agree-to-license`. The script checks for this and says so.
-It is a release build (not debuggable), signed with a key the script creates the first time in
+
+The APK is a release build (not debuggable), signed with a key the script creates the first time in
 `~/.config/wakeup`. Back that folder up: an updated app can only replace an installed one if it is
 signed with the same key.
 
@@ -48,7 +87,7 @@ that source.
 3. Lock the phone and run **Test a real alarm in 1 minute**. That is the only real proof it works.
    A test never cancels the real day.
 
-## Layout
+## Project layout
 
 ```
 src/main/java/com/wakeup
@@ -59,9 +98,11 @@ src/main/java/com/wakeup
   util/         Fmt, time formatting
   ui/           UI design tokens and factories, BaseActivity, Rows, Segmented, Paste
   ui/widget/    Custom views: IconView, SwitchView, PulseView, CheckView, VolumeBars, ScanFrameView
-  ui/sheet/     Bottom sheets: Sheet, TimeSheet, FixSheet
+  ui/sheet/     Bottom sheets: Sheet, TimeSheet, FixSheet, HistorySheet
   ui/screen/    One Activity per screen
 src/main/res    Theme, transitions, launcher icon
+src/test/java   Unit tests for the ring-time maths and formatting
+docs/           Icon and screen images used by this README
 scripts/        setup-sdk.sh
 build-apk.sh    One command to an APK
 ```
@@ -79,4 +120,4 @@ break the chain, and `BootReceiver` re-arms after a reboot or a clock change.
   from powering off or force-stopping it. Use the reliability screen and test the alarm.
 - Built against platform 30 so the old Maven Android plugin works. Newer permission checks
   (exact alarms, full-screen intent) are called by reflection.
-- The font is the phone's system sans-serif.
+- Not yet proven over a long run of real mornings. Keep a backup alarm for the first few nights.
