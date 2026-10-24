@@ -6,6 +6,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -13,6 +14,19 @@ import com.wakeup.ui.widget.IconView;
 
 /** Edge-to-edge screen host: draws under the system bars and pads the content by the insets. */
 public abstract class BaseActivity extends Activity {
+
+    /** Configures an activity to reliably wake up and show over the lock screen on modern Android. */
+    protected void setupLockscreen() {
+        if (android.os.Build.VERSION.SDK_INT >= 27) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+        } else {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                    | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+        }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
 
     /**
      * @param content   root of the screen. Its padding is set to the system bar insets.

@@ -69,7 +69,7 @@ public class MissionActivity extends BaseActivity implements SensorEventListener
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setupLockscreen();
         plan = PlanStore.get(this, RingService.planId);
         if (plan == null) plan = new Plan();
         if (Plan.MISSION_MATH.equals(plan.mission)) total = 3;

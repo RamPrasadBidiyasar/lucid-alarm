@@ -26,7 +26,12 @@ for arg in "$@"; do
 done
 
 case "$(uname -s)" in
-  Darwin) DEFAULT_SDK="$HOME/Library/Android/sdk" ;;
+  Darwin)
+    DEFAULT_SDK="$HOME/Library/Android/sdk"
+    if [[ -d "/opt/homebrew/bin" ]]; then
+      export PATH="/opt/homebrew/bin:$PATH"
+    fi
+    ;;
   *)      DEFAULT_SDK="$HOME/Android/Sdk" ;;
 esac
 export ANDROID_HOME="${ANDROID_HOME:-$DEFAULT_SDK}"

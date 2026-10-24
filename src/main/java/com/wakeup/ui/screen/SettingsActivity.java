@@ -14,11 +14,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 import com.wakeup.alarm.Reliability;
 import com.wakeup.alarm.Scheduler;
+import com.wakeup.alarm.SirenPlayer;
 import com.wakeup.data.MorningState;
+import com.wakeup.model.Plan;
 import com.wakeup.ui.BaseActivity;
 import com.wakeup.ui.Rows;
 import com.wakeup.ui.UI;
 import com.wakeup.ui.sheet.FixSheet;
+import com.wakeup.ui.sheet.Sheet;
 import com.wakeup.ui.widget.IconView;
 import com.wakeup.ui.widget.SwitchView;
 import com.wakeup.util.Fmt;
@@ -99,7 +102,12 @@ public class SettingsActivity extends BaseActivity {
         if (Reliability.needsAutoStart()) status("Auto-start", "Needed on some phone brands", Reliability.AUTOSTART);
 
         col.addView(Rows.section(this, "OPTIONAL", false));
-        Rows.add(col, "Alarm sound", "Rising siren", null, null);
+        Rows.add(col, "Alarm sounds", "Preview sound profiles", Rows.chevron(this), new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                soundPreviewSheet();
+            }
+        });
         Rows.add(col, "Volume guard", "Restores volume if you turn it down",
                 new SwitchView(this, MorningState.volumeGuard(this), new SwitchView.OnChange() {
                     @Override
@@ -165,6 +173,63 @@ public class SettingsActivity extends BaseActivity {
             });
         }
         d.show();
+    }
+
+    private void soundPreviewSheet() {
+        final Sheet s = new Sheet(this);
+        s.body.addView(UI.text(this, "Synthesized sounds", 24, UI.T1, UI.REG));
+        TextView d = UI.text(this, "Tap any profile to hear a 1-second preview. Configured per routine in the editor.", 15, UI.T2, UI.REG);
+        d.setPadding(0, dp(4), 0, dp(12));
+        s.body.addView(d);
+
+        final String[] ids = {Plan.SOUND_SIREN, Plan.SOUND_BEACON, Plan.SOUND_CHIME};
+        final String[] titles = {"Rising siren", "Pulse beacon", "Harmonic chime"};
+        final String[] descs = {"Two-tone sweep", "Sonar ping", "Bell chord"};
+
+        for (int i = 0; i < ids.length; i++) {
+            final int index = i;
+            s.body.addView(UI.hairline(this));
+            LinearLayout row = new LinearLayout(this);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setMinimumHeight(dp(60));
+            LinearLayout t = column();
+            t.addView(UI.text(this, titles[i], 16, UI.T1, UI.MED));
+            TextView sub = UI.text(this, descs[i], 13, UI.T3, UI.REG);
+            sub.setPadding(0, dp(2), 0, 0);
+            t.addView(sub);
+            row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+            row.addView(new IconView(this, IconView.SPEAKER, UI.AMBER), new LinearLayout.LayoutParams(dp(20), dp(20)));
+            row.setClickable(true);
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    UI.haptic(v, UI.H_TICK);
+                    final SirenPlayer p = new SirenPlayer();
+                    p.setSound(ids[index]);
+                    p.setGain(0.5f);
+                    p.start();
+                    v.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            p.stop();
+                        }
+                    }, 1000);
+                }
+            });
+            s.body.addView(row);
+        }
+        s.body.addView(UI.hairline(this));
+        TextView done = UI.primary(this, "Done", 56);
+        done.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                s.dismiss();
+            }
+        });
+        LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dp.topMargin = dp(16);
+        s.body.addView(done, dp);
+        s.show();
     }
 
     private void status(String title, String sub, final int which) {

@@ -25,7 +25,7 @@ public final class Awake {
         MorningState.logHistory(c, how, stopped, now, text);
         Scheduler.scheduleNext(c);
         RingService.send(c, RingService.ACTION_STOP_ALL);
-        // Nothing left to ring means nothing to fall back asleep to.
-        if (!emergency && remaining > 0 && MorningState.stayAwake(c)) StayAwake.schedule(c);
+        // Start stay-awake check whenever enabled, ensuring the user actually stays up
+        if (!emergency && MorningState.stayAwake(c)) StayAwake.schedule(c);
     }
 }

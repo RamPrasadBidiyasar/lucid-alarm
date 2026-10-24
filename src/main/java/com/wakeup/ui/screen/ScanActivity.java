@@ -90,11 +90,12 @@ public class ScanActivity extends BaseActivity implements SurfaceHolder.Callback
     private int pw, ph;
     private int activeMode = MODE_PHRASE;
     private int holdSeconds = 5;
+    private boolean nfcTriggered;
 
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setupLockscreen();
 
         // Support QR and standard retail packaging barcodes (toothpaste, shampoo, soap)
         Map<DecodeHintType, Object> hints = new EnumMap<DecodeHintType, Object>(DecodeHintType.class);
@@ -197,7 +198,10 @@ public class ScanActivity extends BaseActivity implements SurfaceHolder.Callback
         info.setPadding(dp(24), dp(12), dp(24), 0);
         info.addView(UI.hairline(this));
         int remaining = Scheduler.remainingToday(this);
-        TextView t = UI.text(this, "This cancels all " + remaining + " remaining rings today", 16, UI.T1, UI.BOLD);
+        String subTitle = remaining > 0
+                ? "This cancels all " + remaining + (remaining == 1 ? " remaining ring today" : " remaining rings today")
+                : "Confirms your morning · routine complete";
+        TextView t = UI.text(this, subTitle, 16, UI.T1, UI.BOLD);
         t.setPadding(0, dp(12), 0, 0);
         info.addView(t);
         TextView d = UI.text(this, "Tomorrow's routine arms automatically.", 14, UI.T2, UI.REG);
@@ -569,7 +573,7 @@ public class ScanActivity extends BaseActivity implements SurfaceHolder.Callback
         done = true;
         UI.haptic(message, UI.H_CONFIRM);
         stopCamera();
-        String how = activeMode == MODE_SCAN ? "scan" : activeMode == MODE_HOLD ? "hold" : "phrase";
+        String how = nfcTriggered ? "nfc" : (activeMode == MODE_SCAN ? "scan" : activeMode == MODE_HOLD ? "hold" : "phrase");
         Awake.confirm(this, how);
         startActivity(new Intent(this, ClearedActivity.class));
         finish();
@@ -583,6 +587,7 @@ public class ScanActivity extends BaseActivity implements SurfaceHolder.Callback
             if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(act)
                     || NfcAdapter.ACTION_NDEF_DISCOVERED.equals(act)
                     || NfcAdapter.ACTION_TECH_DISCOVERED.equals(act)) {
+                nfcTriggered = true;
                 success();
             }
         }

@@ -34,7 +34,7 @@ public class StayAwakeActivity extends BaseActivity {
             finish();
             return;
         }
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setupLockscreen();
 
         LinearLayout root = column();
         LinearLayout top = column();

@@ -43,7 +43,7 @@ public class RingActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setupLockscreen();
         build();
     }
 
@@ -123,7 +123,9 @@ public class RingActivity extends BaseActivity {
         rl.topMargin = dp(20);
         col.addView(rule, rl);
 
-        TextView s2 = UI.caption(this, "CANCELS ALL " + Scheduler.remainingToday(this) + " REMAINING TODAY", UI.ON_AMBER);
+        int rem = Scheduler.remainingToday(this);
+        String scope = rem > 0 ? "CANCELS ALL " + rem + " REMAINING TODAY" : "FINAL RING OF TODAY";
+        TextView s2 = UI.caption(this, scope, UI.ON_AMBER);
         s2.setGravity(Gravity.CENTER);
         s2.setPadding(0, dp(16), 0, dp(8));
         col.addView(s2, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

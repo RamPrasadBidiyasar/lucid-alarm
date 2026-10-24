@@ -23,6 +23,7 @@ public class DismissedActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        setupLockscreen();
         String pid = getIntent().getStringExtra("planId");
         if (pid == null) pid = RingService.planId;
         final Plan plan = pid != null ? PlanStore.get(this, pid) : null;
@@ -80,20 +81,23 @@ public class DismissedActivity extends BaseActivity {
         String desc;
         String btnLabel;
         int btnIcon = IconView.CHECK;
+        String remainingStr = remaining == 0
+                ? "All rings complete for today. "
+                : (remaining == 1 ? "1 more ring scheduled today. " : remaining + " more rings scheduled today. ");
         if (Plan.CONFIRM_PHRASE.equals(method)) {
-            desc = remaining + " more rings scheduled today. Type your wake-up phrase to cancel all of them.";
+            desc = remainingStr + (remaining == 0 ? "Type phrase to confirm you are awake." : "Type your wake-up phrase to cancel all of them.");
             btnLabel = "Type phrase to wake up";
             btnIcon = IconView.KEYBOARD;
         } else if (Plan.CONFIRM_HOLD.equals(method)) {
-            desc = remaining + " more rings scheduled today. Hold for 5 seconds to confirm you are awake.";
+            desc = remainingStr + "Hold for 5 seconds to confirm you are awake.";
             btnLabel = "Hold 5 sec to wake up";
             btnIcon = IconView.CHECK;
         } else if (Plan.CONFIRM_NFC.equals(method)) {
-            desc = remaining + " more rings scheduled today. Tap your NFC sticker to cancel all of them.";
+            desc = remainingStr + (remaining == 0 ? "Tap NFC sticker to confirm you are awake." : "Tap your NFC sticker to cancel all of them.");
             btnLabel = "Tap NFC tag to wake up";
             btnIcon = IconView.QR;
         } else {
-            desc = remaining + " more rings scheduled today. Scan code or any bathroom item to cancel all of them.";
+            desc = remainingStr + (remaining == 0 ? "Scan code or any bathroom item to confirm you are awake." : "Scan code or any bathroom item to cancel all of them.");
             btnLabel = "Scan code to wake up";
             btnIcon = IconView.QR;
         }

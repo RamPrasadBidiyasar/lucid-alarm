@@ -68,7 +68,21 @@ public final class StayAwake {
         MorningState.setResult(c, "Back to sleep at " + Fmt.time(now) + ". Rings resumed.");
         Scheduler.scheduleNext(c);
         Plan p = planInWindow(c, now);
-        if (p == null) return;
+        if (p == null) {
+            String lastId = MorningState.lastPlanId(c);
+            if (lastId != null && lastId.length() > 0) {
+                p = PlanStore.get(c, lastId);
+            }
+        }
+        if (p == null) {
+            for (Plan item : PlanStore.all(c)) {
+                if (item.enabled) {
+                    p = item;
+                    break;
+                }
+            }
+        }
+        if (p == null) p = new Plan();
         Intent svc = new Intent(c, RingService.class).setAction(RingService.ACTION_START);
         svc.putExtra(Scheduler.EXTRA_PLAN, p.id);
         svc.putExtra(Scheduler.EXTRA_TIME, now);

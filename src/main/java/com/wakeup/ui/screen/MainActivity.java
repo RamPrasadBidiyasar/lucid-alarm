@@ -17,6 +17,7 @@ import com.wakeup.alarm.BedtimeCheck;
 import com.wakeup.alarm.Reliability;
 import com.wakeup.alarm.RingService;
 import com.wakeup.alarm.Scheduler;
+import com.wakeup.alarm.StayAwake;
 import com.wakeup.data.MorningState;
 import com.wakeup.data.PlanStore;
 import com.wakeup.model.Plan;
@@ -185,9 +186,22 @@ public class MainActivity extends BaseActivity {
         String skipped = MorningState.skippedDate(this);
         String result = MorningState.resultToday(this);
 
+        long stayLeft = MorningState.stayDeadline(this) - now;
         if (battery > 0 && n != null && n.time - now <= 8 * 3600 * 1000L) {
             statusRow(col, IconView.WARN, UI.AMBER, false, "Battery " + battery + "%. Plug in so WakeUp can ring at "
                     + Fmt.time(n.time) + ".", null, null);
+        } else if (StayAwake.isPending(this) && stayLeft > 0) {
+            long s = (stayLeft + 999) / 1000;
+            String timeStr = s >= 60 ? (s / 60) + " min" : s + "s";
+            statusRow(col, IconView.CLOCK, UI.AMBER, false, "Stay-awake check in " + timeStr, "I'm up",
+                    new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            UI.haptic(v, UI.H_CONFIRM);
+                            StayAwake.cancel(MainActivity.this);
+                            render();
+                        }
+                    });
         } else if (issues > 0) {
             statusRow(col, -1, UI.AMBER, true, issues + (issues == 1 ? " setting needed." : " settings needed.")
                     + " The alarm may not ring on time.", null, new View.OnClickListener() {

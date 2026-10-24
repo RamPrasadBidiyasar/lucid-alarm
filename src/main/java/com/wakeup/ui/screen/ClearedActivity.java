@@ -21,6 +21,7 @@ public class ClearedActivity extends BaseActivity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        setupLockscreen();
         LinearLayout root = column();
 
         LinearLayout top = column();
@@ -47,7 +48,13 @@ public class ClearedActivity extends BaseActivity {
         list.setPadding(dp(24), dp(44), dp(24), 0);
         int cancelled = MorningState.cancelled(this);
         list.addView(UI.hairline(this));
-        list.addView(item(IconView.CHECK, UI.T2, cancelled + (cancelled == 1 ? " alarm cancelled" : " alarms cancelled"), "The rest of today is quiet"));
+        String cancelledTitle = cancelled > 0
+                ? cancelled + (cancelled == 1 ? " alarm cancelled" : " alarms cancelled")
+                : "Morning routine complete";
+        String cancelledSub = cancelled > 0
+                ? "The rest of today is quiet"
+                : "All rings finished for today";
+        list.addView(item(IconView.CHECK, UI.T2, cancelledTitle, cancelledSub));
         Scheduler.Next next = Scheduler.next(this, System.currentTimeMillis());
         list.addView(UI.hairline(this));
         list.addView(item(IconView.CLOCK, UI.AMBER, next == null ? "No routine armed" : "Tomorrow is armed",

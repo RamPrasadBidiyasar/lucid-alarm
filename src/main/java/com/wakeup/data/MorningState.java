@@ -67,6 +67,14 @@ public final class MorningState {
         return sp(c).getLong("wakeMs", 0);
     }
 
+    public static String lastPlanId(Context c) {
+        return sp(c).getString("lastPlanId", "");
+    }
+
+    public static void setLastPlanId(Context c, String id) {
+        if (id != null) sp(c).edit().putString("lastPlanId", id).apply();
+    }
+
     // ---- result line for Home --------------------------------------------
 
     public static void setResult(Context c, String text) {

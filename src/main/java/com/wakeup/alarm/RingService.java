@@ -108,6 +108,7 @@ public class RingService extends Service {
         if (p == null) p = new Plan();
 
         planId = p.id;
+        if (!isTest) MorningState.setLastPlanId(this, p.id);
         planName = isTest ? "Test alarm" : p.name;
         ringTimeMs = t;
         if (isTest) {

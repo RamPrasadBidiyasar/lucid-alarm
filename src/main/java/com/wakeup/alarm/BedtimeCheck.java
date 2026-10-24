@@ -29,11 +29,15 @@ public final class BedtimeCheck {
     private BedtimeCheck() {}
 
     public static void schedule(Context c, long nextRing) {
+        long now = System.currentTimeMillis();
         long t = nextRing - LEAD_MS;
         AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
         am.cancel(pending(c));
-        if (t > System.currentTimeMillis() + 60000) {
+        if (t > now + 60000) {
             am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, t, pending(c));
+        } else if (nextRing > now + 30 * 60 * 1000L && nextRing - now <= LEAD_MS) {
+            // Already inside the 8-hour bedtime window; alert immediately if battery is low
+            run(c);
         }
     }
 
