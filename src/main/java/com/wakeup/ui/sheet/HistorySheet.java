@@ -61,8 +61,13 @@ public class HistorySheet extends Sheet {
             col.setOrientation(LinearLayout.VERTICAL);
             col.setGravity(Gravity.CENTER_HORIZONTAL);
 
-            TextView d = UI.text(c, daysLetters[i], 13, UI.T3, UI.MED);
-            col.addView(d);
+            // Explicit wrap_content: a vertical LinearLayout would otherwise stretch the letter to the
+            // full column width and leave it sitting left of its dot.
+            boolean isToday = i == 6;
+            TextView d = UI.text(c, daysLetters[i], 13, isToday ? UI.T1 : UI.T3, isToday ? UI.BOLD : UI.MED);
+            d.setGravity(Gravity.CENTER);
+            col.addView(d, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
 
             View dot = new View(c);
             int dotColor = UI.LINE2;
@@ -86,7 +91,9 @@ public class HistorySheet extends Sheet {
             } else {
                 dot.setBackground(UI.rr(c, dotColor, 8));
             }
-            dotBox.addView(dot, new FrameLayout.LayoutParams(UI.dp(c, 12), UI.dp(c, 12), Gravity.CENTER));
+            // Days with nothing logged are a small quiet dot so the recorded mornings stand out.
+            int size = match == null ? 6 : 12;
+            dotBox.addView(dot, new FrameLayout.LayoutParams(UI.dp(c, size), UI.dp(c, size), Gravity.CENTER));
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(UI.dp(c, 24), UI.dp(c, 24));
             p.topMargin = UI.dp(c, 8);
             col.addView(dotBox, p);
