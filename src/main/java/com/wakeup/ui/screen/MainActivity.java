@@ -1,6 +1,7 @@
 package com.wakeup.ui.screen;
 
 import android.animation.ObjectAnimator;
+import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.graphics.Paint;
@@ -8,7 +9,9 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AnimationUtils;
 import android.view.animation.DecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -80,7 +83,7 @@ public class MainActivity extends BaseActivity {
             }
         });
         bar.addView(appLogo, new LinearLayout.LayoutParams(dp(22), dp(22)));
-        TextView title = UI.text(this, "WakeUp", 15, UI.T1, UI.BOLD);
+        final TextView title = UI.text(this, "WakeUp", 15, UI.T1, UI.BOLD);
         title.setPadding(dp(10), 0, 0, 0);
         bar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         FrameLayout settings = new FrameLayout(this);
@@ -191,62 +194,95 @@ public class MainActivity extends BaseActivity {
 
         if (!splashShown && UI.animationsOn() && !RingService.ringing) {
             splashShown = true;
-            showOpeningSplash();
+            playOpening(scroll, appLogo, title, fab);
         }
     }
 
-    private void showOpeningSplash() {
+    /**
+     * Opening animation, played once per launch. The logo blooms in the middle of a dark screen,
+     * then shrinks and glides into its place in the app bar while the screen behind it fades away
+     * and the home content rises into view. No text: the logo is the whole intro. Tap to skip.
+     */
+    private void playOpening(final View scroll, final LogoView appLogo, final TextView title, final View fab) {
         final FrameLayout overlay = new FrameLayout(this);
-        overlay.setBackgroundColor(UI.BG);
         overlay.setClickable(true);
-
-        LinearLayout box = column();
-        box.setGravity(Gravity.CENTER);
-
-        final LogoView splashLogo = new LogoView(this);
-        box.addView(splashLogo, new LinearLayout.LayoutParams(dp(108), dp(108)));
-
-        final TextView caption = UI.caption(this, "WAKEUP", UI.T2);
-        caption.setPadding(0, dp(24), 0, 0);
-        caption.setAlpha(0f);
-        box.addView(caption);
-
-        overlay.addView(box, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        final View backdrop = new View(this);
+        backdrop.setBackgroundColor(UI.BG);
+        overlay.addView(backdrop, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        final int bigSize = dp(108);
+        final LogoView big = new LogoView(this);
+        overlay.addView(big, new FrameLayout.LayoutParams(bigSize, bigSize, Gravity.CENTER));
         frame.addView(overlay, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
 
-        caption.animate().alpha(1f).setStartDelay(200).setDuration(450).start();
+        // The real screen waits behind the overlay.
+        scroll.setAlpha(0f);
+        scroll.setTranslationY(dp(18));
+        fab.setScaleX(0f);
+        fab.setScaleY(0f);
+        appLogo.setAlpha(0f);
+        title.setAlpha(0f);
 
+        final boolean[] landed = {false};
+        final Runnable land = new Runnable() {
+            @Override
+            public void run() {
+                if (landed[0]) return;
+                landed[0] = true;
+                landLogo(overlay, backdrop, big, bigSize, scroll, appLogo, title, fab);
+            }
+        };
         overlay.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dismissSplash(overlay);
+                land.run();
             }
         });
-
-        splashLogo.playOpening(new Runnable() {
+        big.playOpening(new Runnable() {
             @Override
             public void run() {
-                dismissSplash(overlay);
+                // A short hold so the finished mark is seen before it moves.
+                big.postDelayed(land, 140);
             }
         });
     }
 
-    private void dismissSplash(final FrameLayout overlay) {
-        if (overlay == null || overlay.getParent() == null) return;
-        overlay.animate()
-                .alpha(0f)
-                .translationY(-dp(24))
-                .setDuration(280)
-                .setInterpolator(new DecelerateInterpolator(2f))
+    private void landLogo(final FrameLayout overlay, View backdrop, LogoView big, int bigSize, View scroll,
+                          final LogoView appLogo, final TextView title, View fab) {
+        TimeInterpolator glide = AnimationUtils.loadInterpolator(this, android.R.interpolator.fast_out_slow_in);
+
+        // Where the small logo sits, relative to the middle of the screen where the big one is.
+        float tx = 0f;
+        float ty = 0f;
+        float scale = 0.2f;
+        if (appLogo.getWidth() > 0) {
+            int[] a = new int[2];
+            int[] f = new int[2];
+            appLogo.getLocationInWindow(a);
+            frame.getLocationInWindow(f);
+            tx = (a[0] - f[0]) + appLogo.getWidth() / 2f - frame.getWidth() / 2f;
+            ty = (a[1] - f[1]) + appLogo.getHeight() / 2f - frame.getHeight() / 2f;
+            scale = appLogo.getWidth() / (float) bigSize;
+        }
+
+        backdrop.animate().alpha(0f).setStartDelay(60).setDuration(420).setInterpolator(glide).start();
+        big.animate().scaleX(scale).scaleY(scale).translationX(tx).translationY(ty)
+                .setDuration(480).setInterpolator(glide)
                 .withEndAction(new Runnable() {
                     @Override
                     public void run() {
+                        // Hand over to the real logo in the same spot, then bring in the name.
+                        appLogo.setAlpha(1f);
                         frame.removeView(overlay);
+                        title.animate().alpha(1f).setDuration(260).start();
                     }
-                })
-                .start();
+                }).start();
+
+        scroll.animate().alpha(1f).translationY(0f).setStartDelay(160).setDuration(440)
+                .setInterpolator(new DecelerateInterpolator(2f)).start();
+        fab.animate().scaleX(1f).scaleY(1f).setStartDelay(340).setDuration(380)
+                .setInterpolator(new OvershootInterpolator(1.6f)).start();
     }
 
     /** One quiet line under the hero. Only the most important message is shown. */

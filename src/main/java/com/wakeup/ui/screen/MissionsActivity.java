@@ -76,12 +76,12 @@ public class MissionsActivity extends BaseActivity {
         confirmTab = getIntent().getBooleanExtra("confirm", false);
 
         LinearLayout root = column();
-        root.addView(appBar("Missions", IconView.CHEV_L, new View.OnClickListener() {
+        root.addView(withLogo(appBar("Missions", IconView.CHEV_L, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 finish();
             }
-        }));
+        })));
 
         tabs = new LinearLayout(this);
         tabs.setPadding(dp(24), dp(8), dp(24), 0);

@@ -11,6 +11,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import com.wakeup.ui.widget.IconView;
+import com.wakeup.ui.widget.LogoView;
 
 /** Edge-to-edge screen host: draws under the system bars and pads the content by the insets. */
 public abstract class BaseActivity extends Activity {
@@ -66,6 +67,23 @@ public abstract class BaseActivity extends Activity {
 
     protected int dp(float v) {
         return UI.dp(this, v);
+    }
+
+    /** Adds the small brand mark at the end of an app bar. Tap it for a little pulse. */
+    protected LinearLayout withLogo(LinearLayout bar) {
+        final LogoView logo = new LogoView(this);
+        logo.setContentDescription("WakeUp logo");
+        logo.setClickable(true);
+        logo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                logo.pulse();
+            }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(22), dp(22));
+        lp.leftMargin = dp(12);
+        bar.addView(logo, lp);
+        return bar;
     }
 
     /** App bar with a back or close icon and a title. */

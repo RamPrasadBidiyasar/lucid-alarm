@@ -35,12 +35,12 @@ public class SettingsActivity extends BaseActivity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         LinearLayout root = column();
-        root.addView(appBar("Reliability and sound", IconView.CHEV_L, new View.OnClickListener() {
+        root.addView(withLogo(appBar("Reliability and sound", IconView.CHEV_L, new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 finish();
             }
-        }));
+        })));
         ScrollView scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
         col = column();

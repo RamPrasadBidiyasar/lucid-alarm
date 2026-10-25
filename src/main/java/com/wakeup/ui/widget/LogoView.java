@@ -44,7 +44,7 @@ public class LogoView extends View {
         ripplePaint.setStrokeCap(Paint.Cap.ROUND);
     }
 
-    /** Plays the signature opening bloom animation over 850 ms. */
+    /** Plays the signature opening bloom animation over 720 ms. */
     public void playOpening(final Runnable onEnd) {
         if (!UI.animationsOn()) {
             progress = 1.0f;
@@ -61,7 +61,7 @@ public class LogoView extends View {
         invalidate();
 
         anim = ValueAnimator.ofFloat(0f, 1f);
-        anim.setDuration(850);
+        anim.setDuration(720);
         anim.setInterpolator(new DecelerateInterpolator(1.8f));
         anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override

@@ -82,6 +82,7 @@ public class EditorActivity extends BaseActivity {
         IconView pencil = new IconView(this, IconView.EDIT, UI.T3);
         pencil.setOnClickListener(rename);
         bar.addView(pencil, new LinearLayout.LayoutParams(dp(20), dp(20)));
+        withLogo(bar);
         root.addView(bar);
 
         ScrollView scroll = new ScrollView(this);
