@@ -26,6 +26,7 @@ import com.wakeup.ui.Rows;
 import com.wakeup.ui.UI;
 import com.wakeup.ui.sheet.HistorySheet;
 import com.wakeup.ui.widget.IconView;
+import com.wakeup.ui.widget.LogoView;
 import com.wakeup.ui.widget.SwitchView;
 import com.wakeup.util.Fmt;
 import java.util.List;
@@ -35,6 +36,7 @@ public class MainActivity extends BaseActivity {
     private FrameLayout frame;
     private String openId;
     private boolean firstRender = true;
+    private static boolean splashShown;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -68,7 +70,19 @@ public class MainActivity extends BaseActivity {
         LinearLayout bar = new LinearLayout(this);
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(24), 0, dp(12), 0);
-        bar.addView(UI.text(this, "WakeUp", 15, UI.T1, UI.BOLD), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        final LogoView appLogo = new LogoView(this);
+        appLogo.setContentDescription("WakeUp logo");
+        appLogo.setClickable(true);
+        appLogo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                appLogo.pulse();
+            }
+        });
+        bar.addView(appLogo, new LinearLayout.LayoutParams(dp(22), dp(22)));
+        TextView title = UI.text(this, "WakeUp", 15, UI.T1, UI.BOLD);
+        title.setPadding(dp(10), 0, 0, 0);
+        bar.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         FrameLayout settings = new FrameLayout(this);
         settings.addView(new IconView(this, IconView.SLIDERS, UI.T1), new FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER));
         settings.setClickable(true);
@@ -174,6 +188,65 @@ public class MainActivity extends BaseActivity {
         FrameLayout.LayoutParams fp = new FrameLayout.LayoutParams(dp(60), dp(60), Gravity.BOTTOM | Gravity.END);
         fp.setMargins(0, 0, dp(24), dp(24));
         frame.addView(fab, fp);
+
+        if (!splashShown && UI.animationsOn() && !RingService.ringing) {
+            splashShown = true;
+            showOpeningSplash();
+        }
+    }
+
+    private void showOpeningSplash() {
+        final FrameLayout overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(UI.BG);
+        overlay.setClickable(true);
+
+        LinearLayout box = column();
+        box.setGravity(Gravity.CENTER);
+
+        final LogoView splashLogo = new LogoView(this);
+        box.addView(splashLogo, new LinearLayout.LayoutParams(dp(108), dp(108)));
+
+        final TextView caption = UI.caption(this, "WAKEUP", UI.T2);
+        caption.setPadding(0, dp(24), 0, 0);
+        caption.setAlpha(0f);
+        box.addView(caption);
+
+        overlay.addView(box, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER));
+        frame.addView(overlay, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
+        caption.animate().alpha(1f).setStartDelay(200).setDuration(450).start();
+
+        overlay.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                dismissSplash(overlay);
+            }
+        });
+
+        splashLogo.playOpening(new Runnable() {
+            @Override
+            public void run() {
+                dismissSplash(overlay);
+            }
+        });
+    }
+
+    private void dismissSplash(final FrameLayout overlay) {
+        if (overlay == null || overlay.getParent() == null) return;
+        overlay.animate()
+                .alpha(0f)
+                .translationY(-dp(24))
+                .setDuration(280)
+                .setInterpolator(new DecelerateInterpolator(2f))
+                .withEndAction(new Runnable() {
+                    @Override
+                    public void run() {
+                        frame.removeView(overlay);
+                    }
+                })
+                .start();
     }
 
     /** One quiet line under the hero. Only the most important message is shown. */
